@@ -17,7 +17,7 @@ disk to live-and-verified in a single step.
 
 ### With `go install` (recommended)
 
-Requires Go 1.24+.
+Requires Go 1.25+.
 
 ```bash
 go install github.com/7c/aptbase@latest
