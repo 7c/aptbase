@@ -25,7 +25,37 @@ func newFlags() *pflag.FlagSet {
 	fs.Bool(KeyJSON, false, "")
 	fs.Bool(KeyNoColor, false, "")
 	fs.Bool(KeyYes, false, "")
+	fs.Bool(KeyDebug, false, "")
 	return fs
+}
+
+func TestDebugSetting(t *testing.T) {
+	path := writeINI(t, "[default]\ndebug = true\n")
+	fs := newFlags()
+	_ = fs.Set("config", path)
+	s, err := Resolve(fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.Debug {
+		t.Error("debug should be true from config")
+	}
+	if s.Source(KeyDebug) != path {
+		t.Errorf("debug source = %q, want %q", s.Source(KeyDebug), path)
+	}
+
+	// env overrides file, flag overrides env.
+	t.Setenv("APTBASE_DEBUG", "false")
+	fs2 := newFlags()
+	_ = fs2.Set("config", path)
+	_ = fs2.Set(KeyDebug, "true")
+	s2, err := Resolve(fs2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s2.Debug || s2.Source(KeyDebug) != "flag" {
+		t.Errorf("flag should win: debug=%v source=%s", s2.Debug, s2.Source(KeyDebug))
+	}
 }
 
 func writeINI(t *testing.T, body string) string {

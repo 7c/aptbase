@@ -421,6 +421,26 @@ aptbase --json publish list | jq '.[].Distribution'
 
 ---
 
+## Debugging & bug reports
+
+`--debug` is available on **every** command and prints debug-level diagnostics to
+**stderr** (so it never pollutes `--json` on stdout): config resolution (files
+read, resolved values + sources), every HTTP request/response with status and
+timing, request/error bodies, and async task polling.
+
+```bash
+aptbase --debug discover                       # trace to the terminal
+aptbase --debug deploy ./app.deb --repo myrepo 2> debug.log   # capture for a report
+APTBASE_DEBUG=1 aptbase ping                    # or via env / 'debug = true' in config
+```
+
+Secrets are redacted: the Basic-auth password is never printed (only `auth=y
+user=…`), `--password` is masked in the startup args line, and `password` /
+`Passphrase` / `GpgKeyArmor` are masked in any logged request body. When filing
+a bug, re-run with `--debug` and attach the stderr output.
+
+---
+
 ## Exit codes
 
 `aptbase` exits non-zero when an operation fails. With multiple servers, it

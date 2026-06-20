@@ -3,13 +3,48 @@ package cmd
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/7c/aptbase/internal/config"
+	"github.com/7c/aptbase/internal/debug"
 	"github.com/7c/aptbase/internal/ui"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
+
+// redactArgs masks the value of --password (in both "--password x" and
+// "--password=x" forms) so the startup args line is safe to paste in bug reports.
+func redactArgs(args []string) []string {
+	out := make([]string, len(args))
+	maskNext := false
+	for i, a := range args {
+		switch {
+		case maskNext:
+			out[i] = "***"
+			maskNext = false
+		case a == "--password":
+			out[i] = a
+			maskNext = true
+		case strings.HasPrefix(a, "--password="):
+			out[i] = "--password=***"
+		default:
+			out[i] = a
+		}
+	}
+	return out
+}
+
+// envTrue reports whether an environment variable is set to a truthy value.
+func envTrue(name string) bool {
+	v, ok := os.LookupEnv(name)
+	if !ok {
+		return false
+	}
+	b, _ := strconv.ParseBool(strings.TrimSpace(v))
+	return b
+}
 
 // Build metadata, injected at build time via -ldflags (see Makefile).
 var (
@@ -50,6 +85,11 @@ see every resolved setting and where it came from.`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Enable debug before resolving config so the resolution itself is traced.
+		dbg, _ := cmd.Flags().GetBool(config.KeyDebug)
+		debug.Enabled = dbg || envTrue("APTBASE_DEBUG")
+		debug.Logf("aptbase %s  args=%q", version, redactArgs(os.Args[1:]))
+
 		s, err := config.Resolve(cmd.Flags())
 		if err != nil {
 			return err
@@ -58,6 +98,8 @@ see every resolved setting and where it came from.`,
 		if s.NoColor {
 			color.NoColor = true
 		}
+		// config.ini / env may also enable debug; never turn it back off.
+		debug.Enabled = debug.Enabled || s.Debug
 		return nil
 	},
 }
@@ -86,6 +128,7 @@ func init() {
 	pf.Bool(config.KeyInsecure, false, "skip TLS certificate verification")
 	pf.Duration(config.KeyTimeout, 60*time.Second, "per-request timeout")
 	pf.Bool(config.KeyYes, false, "assume yes; skip destructive-action confirmations")
+	pf.Bool(config.KeyDebug, false, "print debug-level diagnostics to stderr (for bug reports)")
 
 	rootCmd.AddCommand(versionCmd)
 }

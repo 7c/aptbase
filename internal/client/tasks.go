@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/7c/aptbase/internal/debug"
 )
 
 // taskPollInterval is how often StreamTask polls for new output.
@@ -49,10 +51,16 @@ func (c *Client) TaskOutput(id int) (string, error) {
 // appended slice of output for live progress. It returns the final task state.
 func (c *Client) StreamTask(id int, onChunk func(string)) (*Task, error) {
 	var seen int
+	lastState := -1
+	debug.Logf("task %d: streaming until done", id)
 	for {
 		task, err := c.GetTask(id)
 		if err != nil {
 			return nil, err
+		}
+		if task.State != lastState {
+			debug.Logf("task %d: state=%s", id, task.StateString())
+			lastState = task.State
 		}
 		if onChunk != nil {
 			if out, oerr := c.TaskOutput(id); oerr == nil && len(out) > seen {

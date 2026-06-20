@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/7c/aptbase/internal/debug"
 	"github.com/spf13/pflag"
 	"gopkg.in/ini.v1"
 )
@@ -39,6 +40,7 @@ const (
 	KeyJSON          = "json"
 	KeyNoColor       = "no-color"
 	KeyYes           = "yes"
+	KeyDebug         = "debug"
 )
 
 // SystemConfigPath is the default system-wide config location.
@@ -59,6 +61,7 @@ type Settings struct {
 	JSON          bool
 	NoColor       bool
 	Yes           bool
+	Debug         bool
 
 	sources map[string]string // key -> human-readable source label
 }
@@ -118,6 +121,10 @@ func Resolve(flags *pflag.FlagSet) (*Settings, error) {
 
 	explicit := firstNonEmpty(flagValue(flags, "config"), os.Getenv("APTBASE_CONFIG"))
 	paths := configPaths(explicit)
+	debug.Section("config resolution")
+	if server != "" {
+		debug.Logf("server section: [server:%s]", server)
+	}
 	for _, path := range paths {
 		if err := s.loadFile(path, server); err != nil {
 			return nil, err
@@ -133,7 +140,25 @@ func Resolve(flags *pflag.FlagSet) (*Settings, error) {
 	if server != "" {
 		s.Server = server
 	}
+	s.logResolved()
 	return s, nil
+}
+
+// logResolved emits the resolved settings and their sources when debugging.
+func (s *Settings) logResolved() {
+	if !debug.Enabled {
+		return
+	}
+	pw := "(prompt on 401)"
+	if s.HasPassword {
+		pw = "***"
+	}
+	debug.Logf("resolved: api=%v server=%q user=%q password=%s", s.APIs, s.Server, s.User, pw)
+	debug.Logf("resolved: distributions=%v repos=%v prefix=%q", s.Distributions, s.Repos, s.Prefix)
+	debug.Logf("resolved: insecure=%v timeout=%s json=%v no-color=%v yes=%v debug=%v",
+		s.Insecure, s.Timeout, s.JSON, s.NoColor, s.Yes, s.Debug)
+	debug.Logf("sources: api=%s user=%s distributions=%s repos=%s prefix=%s",
+		s.Source(KeyAPI), s.Source(KeyUser), s.Source(KeyDistributions), s.Source(KeyRepos), s.Source(KeyPrefix))
 }
 
 // configPaths returns the ordered list of config files to read.
@@ -152,8 +177,10 @@ func configPaths(explicit string) []string {
 // selected [server:NAME] section on top. Missing files are ignored.
 func (s *Settings) loadFile(path, server string) error {
 	if _, err := os.Stat(path); err != nil {
+		debug.Logf("config file %s: not present", path)
 		return nil // absent files are not an error
 	}
+	debug.Logf("config file %s: loading", path)
 	f, err := ini.Load(path)
 	if err != nil {
 		return fmt.Errorf("reading config %s: %w", path, err)
@@ -216,6 +243,10 @@ func (s *Settings) applySection(sec *ini.Section, src string) {
 		s.Yes, _ = sec.Key(KeyYes).Bool()
 		s.sources[KeyYes] = src
 	}
+	if sec.HasKey(KeyDebug) {
+		s.Debug, _ = sec.Key(KeyDebug).Bool()
+		s.sources[KeyDebug] = src
+	}
 }
 
 // envBindings maps env var name -> setting key for source labelling.
@@ -231,6 +262,7 @@ var envBindings = map[string]string{
 	"APTBASE_JSON":          KeyJSON,
 	"APTBASE_NO_COLOR":      KeyNoColor,
 	"APTBASE_YES":           KeyYes,
+	"APTBASE_DEBUG":         KeyDebug,
 }
 
 func (s *Settings) applyEnv() {
@@ -268,6 +300,8 @@ func (s *Settings) applyEnv() {
 			s.NoColor = parseBool(v)
 		case KeyYes:
 			s.Yes = parseBool(v)
+		case KeyDebug:
+			s.Debug = parseBool(v)
 		}
 		s.sources[key] = src
 	}
@@ -336,6 +370,10 @@ func (s *Settings) applyFlags(flags *pflag.FlagSet) error {
 	if changed(flags, KeyYes) {
 		s.Yes, _ = flags.GetBool(KeyYes)
 		s.sources[KeyYes] = src
+	}
+	if changed(flags, KeyDebug) {
+		s.Debug, _ = flags.GetBool(KeyDebug)
+		s.sources[KeyDebug] = src
 	}
 	return nil
 }

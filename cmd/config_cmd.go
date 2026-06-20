@@ -107,6 +107,7 @@ overrides combined.`,
 			{config.KeyJSON, boolStr(settings.JSON), settings.Source(config.KeyJSON), boolStr(def.JSON)},
 			{config.KeyNoColor, boolStr(settings.NoColor), settings.Source(config.KeyNoColor), boolStr(def.NoColor)},
 			{config.KeyYes, boolStr(settings.Yes), settings.Source(config.KeyYes), boolStr(def.Yes)},
+			{config.KeyDebug, boolStr(settings.Debug), settings.Source(config.KeyDebug), boolStr(def.Debug)},
 		}
 
 		if settings.JSON {

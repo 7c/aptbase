@@ -18,7 +18,12 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/7c/aptbase/internal/debug"
 )
+
+func now() time.Time                  { return time.Now() }
+func since(t time.Time) time.Duration { return time.Since(t).Round(time.Millisecond) }
 
 // Client talks to a single aptly API server.
 type Client struct {
@@ -146,11 +151,27 @@ func (c *Client) send(method, path string, query url.Values, contentType string,
 	if c.hasAuth {
 		req.SetBasicAuth(c.user, c.pass)
 	}
+	debug.Logf("→ %s %s (auth=%s, body=%d bytes)", method, u, authState(c), len(body))
+	if len(body) > 0 {
+		debug.Logf("  request body: %s", debug.Redact(body))
+	}
+	start := now()
 	resp, err := c.http.Do(req)
 	if err != nil {
+		debug.Logf("✗ %s %s failed after %s: %v", method, u, since(start), err)
 		return nil, fmt.Errorf("connecting to %s: %w", c.baseURL, err)
 	}
+	debug.Logf("← %d %s (%s)", resp.StatusCode, u, since(start))
 	return resp, nil
+}
+
+// authState renders whether and as whom a request is authenticated, never the
+// password itself.
+func authState(c *Client) string {
+	if !c.hasAuth {
+		return "n"
+	}
+	return "y user=" + c.user
 }
 
 // decode reads the response, mapping non-2xx into an APIError and otherwise
@@ -160,8 +181,10 @@ func decode(resp *http.Response, out any) error {
 	data, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		debug.Logf("  error body: %s", debug.Redact(data))
 		return &APIError{Status: resp.StatusCode, Message: extractError(data)}
 	}
+	debug.Logf("  response: %d bytes", len(data))
 	if out == nil || len(data) == 0 {
 		return nil
 	}
@@ -270,9 +293,13 @@ func (c *Client) sendRaw(method, path, contentType string, body []byte) (*http.R
 	if c.hasAuth {
 		req.SetBasicAuth(c.user, c.pass)
 	}
+	debug.Logf("→ %s %s (auth=%s, upload=%d bytes, %s)", method, c.baseURL+path, authState(c), len(body), contentType)
+	start := now()
 	resp, err := c.http.Do(req)
 	if err != nil {
+		debug.Logf("✗ %s %s failed after %s: %v", method, c.baseURL+path, since(start), err)
 		return nil, fmt.Errorf("connecting to %s: %w", c.baseURL, err)
 	}
+	debug.Logf("← %d %s (%s)", resp.StatusCode, c.baseURL+path, since(start))
 	return resp, nil
 }
