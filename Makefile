@@ -1,7 +1,9 @@
 BINARY      := aptbase
 BIN_DIR     := bin
 PKG         := github.com/7c/aptbase
-VERSION     := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# version.txt is the single source of truth for the build version (semver).
+# COMMIT and DATE are informational build metadata, not version sources.
+VERSION     := $(shell cat version.txt 2>/dev/null || echo dev)
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE        := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS     := -s -w \
@@ -40,6 +42,14 @@ fmt: ## Format the code
 .PHONY: vet
 vet: ## Run go vet
 	go vet ./...
+
+.PHONY: version
+version: ## Print the current version from version.txt
+	@echo $(VERSION)
+
+.PHONY: bump
+bump: ## Bump version.txt (PART=patch|minor|major, default patch)
+	go run ./tools/increaseversion.go $(or $(PART),patch)
 
 .PHONY: clean
 clean: ## Remove build artifacts

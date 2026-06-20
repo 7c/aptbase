@@ -30,6 +30,7 @@ string.`,
 			{"commit", commit},
 			{"built", date},
 			{"go", runtime.Version()},
+			{"platform", runtime.GOOS + "/" + runtime.GOARCH},
 		})
 
 		set, err := resolveTargets()
@@ -51,10 +52,11 @@ string.`,
 
 func versionJSON() error {
 	out := map[string]any{
-		"aptbase": version,
-		"commit":  commit,
-		"built":   date,
-		"go":      runtime.Version(),
+		"aptbase":  version,
+		"commit":   commit,
+		"built":    date,
+		"go":       runtime.Version(),
+		"platform": runtime.GOOS + "/" + runtime.GOARCH,
 	}
 	if set, err := resolveTargets(); err == nil {
 		remotes := map[string]string{}

@@ -362,18 +362,44 @@ make build      # compile to ./bin/aptbase (with version metadata)
 make test       # run unit tests
 make vet        # go vet
 make fmt        # gofmt
+make version    # print the current version
+make bump       # bump version.txt (PART=patch|minor|major, default patch)
 make help       # list all targets
 ```
+
+### Versioning & releasing
+
+`version.txt` at the repo root is the **single source of truth** for the build
+version (a [semver](https://semver.org/) string). `make build` reads it and
+injects the version, git commit, and build date into the binary via `-ldflags`,
+so `aptbase version` is self-describing on any host. A plain `go build` (without
+the Makefile) shows the placeholder `dev`, which is a useful signal that the
+binary was not built through the release path.
+
+Release flow:
+
+```bash
+make bump PART=minor          # e.g. 0.1.0 -> 0.2.0 (or PART=patch|major)
+git commit -am "release v$(cat version.txt)"
+git tag "v$(cat version.txt)" && git push --tags
+```
+
+Tagging the commit to match `version.txt` keeps `go install
+github.com/7c/aptbase@latest` reporting the same version: a `go install` build
+cannot read `version.txt`, so it falls back to the version and commit Go embeds
+from the module's VCS tag.
 
 The codebase is organized by concern:
 
 ```
+version.txt         single source of truth for the build version (semver)
 cmd/                cobra commands (thin, human-facing)
 internal/config/    layered config resolver
 internal/client/    typed aptly API client (+ async tasks, 401 auth)
 internal/target/    multi-server fan-out
 internal/ui/        colored output and tables
 internal/render/    human vs JSON rendering
+tools/              dev tools (e.g. increaseversion.go); not part of the binary
 ```
 
 ---
