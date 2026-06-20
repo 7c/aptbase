@@ -3,6 +3,7 @@ package cmd
 import (
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/7c/aptbase/internal/client"
 	"github.com/7c/aptbase/internal/render"
@@ -11,7 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var discoverNoCounts bool
+var (
+	discoverNoCounts bool
+	discoverTop      int
+)
 
 var discoverCmd = &cobra.Command{
 	Use:   "discover",
@@ -21,11 +25,14 @@ its version and auth status, a summary count of repositories, mirrors,
 snapshots, publications and tasks, and detailed tables for each.
 
 It is a fast way to understand an unfamiliar server, audit what is live, or
-sanity-check a deploy target. By default it also counts packages per local
-repository (one query each); use --no-counts to skip that on large servers.`,
+sanity-check a deploy target. By default it counts packages per local
+repository and previews the top few from each (one query each); use --no-counts
+to skip that on large servers, and --top to control how many packages to show
+(0 disables the preview, a negative value shows all).`,
 	Example: `  aptbase --api http://aptbase:8080 discover
+  aptbase --api http://aptbase:8080 discover --top 10
   aptbase --api http://aptbase:8080 discover --no-counts
-  aptbase --api http://aptbase:8080 discover --json | jq '.repos'`,
+  aptbase --api http://aptbase:8080 discover --json | jq '.[].repos'`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		set, err := resolveTargets()
@@ -71,10 +78,19 @@ type overview struct {
 	Tasks         []client.Task          `json:"tasks"`
 }
 
-// repoInfo is a repository plus its package count (-1 when unknown).
+// repoInfo is a repository plus its package count (-1 when unknown) and a
+// preview of some of its packages.
 type repoInfo struct {
 	client.Repo
-	Packages int `json:"packages"`
+	Packages int          `json:"packages"`
+	Sample   []pkgPreview `json:"sample,omitempty"`
+}
+
+// pkgPreview is a package parsed from an aptly package key for display.
+type pkgPreview struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Arch    string `json:"arch"`
 }
 
 func discoverServer(srv target.Server) (*overview, error) {
@@ -89,13 +105,14 @@ func discoverServer(srv target.Server) (*overview, error) {
 		return nil, err
 	}
 	for _, r := range repos {
-		count := -1
+		info := repoInfo{Repo: r, Packages: -1}
 		if !discoverNoCounts {
 			if keys, perr := srv.Client.RepoPackages(r.Name, ""); perr == nil {
-				count = len(keys)
+				info.Packages = len(keys)
+				info.Sample = previewPackages(keys, discoverTop)
 			}
 		}
-		ov.Repos = append(ov.Repos, repoInfo{Repo: r, Packages: count})
+		ov.Repos = append(ov.Repos, info)
 	}
 
 	// Mirrors, snapshots, publications and tasks are best-effort: a server may
@@ -142,6 +159,7 @@ func (ov *overview) print() {
 			rows = append(rows, []string{r.Name, r.DefaultDistribution, r.DefaultComponent, countStr(r.Packages), r.Comment})
 		}
 		ui.Table([]string{"NAME", "DIST", "COMPONENT", "PACKAGES", "COMMENT"}, rows)
+		ov.printPackages()
 	}
 
 	if len(ov.Mirrors) > 0 {
@@ -189,6 +207,69 @@ func (ov *overview) print() {
 	}
 }
 
+// previewPackages parses aptly package keys, sorts them (by name ascending,
+// then version descending so the newest version of each package comes first),
+// and returns up to limit entries. limit == 0 returns none; limit < 0 returns
+// all.
+func previewPackages(keys []string, limit int) []pkgPreview {
+	if limit == 0 || len(keys) == 0 {
+		return nil
+	}
+	pkgs := make([]pkgPreview, 0, len(keys))
+	for _, k := range keys {
+		pkgs = append(pkgs, parsePkgKey(k))
+	}
+	sort.Slice(pkgs, func(i, j int) bool {
+		if pkgs[i].Name != pkgs[j].Name {
+			return pkgs[i].Name < pkgs[j].Name
+		}
+		return pkgs[i].Version > pkgs[j].Version
+	})
+	if limit > 0 && len(pkgs) > limit {
+		pkgs = pkgs[:limit]
+	}
+	return pkgs
+}
+
+// parsePkgKey parses an aptly package key of the form "Parch name version hash"
+// (e.g. "Pamd64 nginx 1.20.1-1 a1b2c3"). Unparseable keys fall back to the raw
+// string as the name.
+func parsePkgKey(key string) pkgPreview {
+	fields := strings.Fields(key)
+	if len(fields) < 3 {
+		return pkgPreview{Name: key}
+	}
+	arch := strings.TrimPrefix(fields[0], "P")
+	return pkgPreview{Name: fields[1], Version: fields[2], Arch: arch}
+}
+
+// printPackages renders, per repo, a small table previewing its packages.
+func (ov *overview) printPackages() {
+	if discoverTop == 0 {
+		return
+	}
+	heading := "Packages (all per repo)"
+	if discoverTop > 0 {
+		heading = "Packages (top " + strconv.Itoa(discoverTop) + " per repo)"
+	}
+	printed := false
+	for _, r := range ov.Repos {
+		if len(r.Sample) == 0 {
+			continue
+		}
+		if !printed {
+			ui.Label(heading)
+			printed = true
+		}
+		ui.Dim("%s", r.Name)
+		rows := make([][]string, 0, len(r.Sample))
+		for _, p := range r.Sample {
+			rows = append(rows, []string{p.Name, p.Version, p.Arch})
+		}
+		ui.Table([]string{"NAME", "VERSION", "ARCH"}, rows)
+	}
+}
+
 func countStr(n int) string {
 	if n < 0 {
 		return "?"
@@ -219,5 +300,6 @@ func activeTasks(tasks []client.Task) []client.Task {
 
 func init() {
 	discoverCmd.Flags().BoolVar(&discoverNoCounts, "no-counts", false, "skip counting packages per repository")
+	discoverCmd.Flags().IntVar(&discoverTop, "top", 5, "packages to preview per repo (0 = none, <0 = all)")
 	rootCmd.AddCommand(discoverCmd)
 }

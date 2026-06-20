@@ -243,10 +243,13 @@ aptbase discover         # detailed overview of each server (see below)
 `discover` probes each configured server and prints a rich overview: aptly
 version and auth status, a summary count of repositories, mirrors, snapshots,
 publications and tasks, and detailed tables for each. By default it counts
-packages per local repository (one query each); `--no-counts` skips that.
+packages per local repository and previews the top few from each (newest
+version first); `--no-counts` skips the package query entirely, and `--top N`
+controls how many to preview (`0` disables it, a negative value shows all).
 
 ```bash
 aptbase --api http://aptbase:8080 discover
+aptbase --api http://aptbase:8080 discover --top 10
 aptbase --api http://aptbase:8080 discover --no-counts
 aptbase --api http://aptbase:8080 discover --json | jq '.[].repos'
 ```
@@ -266,6 +269,12 @@ Local repositories
 NAME    DIST   COMPONENT  PACKAGES  COMMENT
 ──────  ─────  ─────────  ────────  ───────
 app     noble  main       8
+
+Packages (top 5 per repo)
+app
+NAME   VERSION   ARCH
+─────  ────────  ─────
+nginx  1.20.1-1  amd64
 ...
 ```
 
