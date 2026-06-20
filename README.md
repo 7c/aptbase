@@ -317,14 +317,21 @@ aptbase repo add ./a_1_amd64.deb ./b_1_amd64.deb     # repo(s) from config defau
 
 1. uploads the `.deb` file(s),
 2. adds them to the target repo(s),
-3. re-publishes each target distribution so the package goes live, and
+3. refreshes every publication that **sources** the repo so the package goes
+   live — the publication prefix and distribution are discovered from the
+   server (no need to know the prefix), and
 4. verifies the package is present in the repo.
 
-Repos default to the configured `repos`; distributions default to the configured
-`distributions` (override with `-d`). It fans out across every configured server.
+Repos come from the positional argument, `--repo` (repeatable), or the
+configured `repos`. By default every distribution the repo is published to is
+refreshed; narrow that with `-d`/`--distribution`. It fans out across every
+configured server.
 
 ```bash
-# Single repo, two distributions
+# Repo published under a non-root prefix — prefix is auto-detected
+aptbase deploy ./app_1.2.3_amd64.deb --repo 99835
+
+# Single repo, narrow to two distributions
 aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
 
 # Use config defaults for repo / distributions / servers
