@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	deployRepos      []string
 	deployGpgKey     string
 	deployKeyring    string
 	deployPassphrase string
@@ -31,11 +32,15 @@ For each target server it:
   3. re-publishes each target distribution so the package goes live, and
   4. verifies the package is present in the repo.
 
-Repos default to the configured 'repos'; distributions default to the
+Repos default to the configured 'repos' (override positionally or with --repo,
+which is repeatable for multi-repo releases); distributions default to the
 configured 'distributions' (override with -d). It fans out across every
 configured server, so one command can release everywhere.`,
 	Example: `  # Single repo, two distributions
   aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
+
+  # Override the repo(s) with --repo (repeatable)
+  aptbase deploy ./app.deb --repo app-stable --repo app-edge -d noble
 
   # Use config defaults for repo/distributions/servers
   aptbase deploy ./app_1.2.3_amd64.deb
@@ -51,7 +56,7 @@ configured server, so one command can release everywhere.`,
 		if err != nil {
 			return err
 		}
-		repos, err := reposFor(repoArg)
+		repos, err := reposForDeploy(repoArg)
 		if err != nil {
 			return err
 		}
@@ -71,6 +76,19 @@ configured server, so one command can release everywhere.`,
 			return deployToServer(srv, repos, dists, files)
 		})
 	},
+}
+
+// reposForDeploy resolves the target repos: --repo wins (repeatable), else the
+// positional repo argument, else the configured default repos. The --repo flag
+// and a positional repo cannot both be given.
+func reposForDeploy(repoArg string) ([]string, error) {
+	if len(deployRepos) > 0 {
+		if repoArg != "" {
+			return nil, fmt.Errorf("specify the repo positionally or with --repo, not both")
+		}
+		return deployRepos, nil
+	}
+	return reposFor(repoArg)
 }
 
 // deployToServer runs the full add → publish → verify pipeline on one server.
@@ -142,6 +160,7 @@ func packagePresent(keys []string, info debInfo) bool {
 
 func init() {
 	f := deployCmd.Flags()
+	f.StringArrayVar(&deployRepos, "repo", nil, "target repo (repeatable; overrides positional/config)")
 	f.StringVar(&deployGpgKey, "gpg-key", "", "GPG key ID to sign the published repo")
 	f.StringVar(&deployKeyring, "keyring", "", "GPG keyring file to use")
 	f.StringVar(&deployPassphrase, "passphrase", "", "GPG key passphrase")
