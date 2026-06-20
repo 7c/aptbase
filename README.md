@@ -65,8 +65,8 @@ VCS commit embedded by Go.
 aptbase --api http://localhost:8080 ping
 
 # 2. Scaffold a config file so you stop retyping flags
-aptbase config new --path ~/.config/aptbase/config.ini
-$EDITOR ~/.config/aptbase/config.ini
+aptbase config new --path ~/aptbase.ini
+$EDITOR ~/aptbase.ini
 
 # 3. See what aptbase resolved (and where each value came from)
 aptbase config list
@@ -84,8 +84,8 @@ ones (last value wins):**
 
 ```
 built-in defaults
-  → /etc/aptbase/config.ini
-  → ~/.config/aptbase/config.ini
+  → /etc/aptbase.ini
+  → ~/aptbase.ini
   → APTBASE_* environment variables
   → command-line flags
 ```
@@ -103,8 +103,8 @@ aptbase config list
 ```
 SETTING        VALUE                          SOURCE                   DEFAULT
 ─────────────  ─────────────────────────────  ───────────────────────  ───────────────
-api            http://localhost:8080          ~/.config/aptbase/...    (none)
-distributions  noble jammy focal              ~/.config/aptbase/...    (none)
+api            http://localhost:8080          ~/aptbase.ini            (none)
+distributions  noble jammy focal              ~/aptbase.ini            (none)
 prefix         .                              default                  .
 timeout        1m0s                           default                  1m0s
 ...
@@ -115,9 +115,9 @@ timeout        1m0s                           default                  1m0s
 Generate an annotated starter file:
 
 ```bash
-aptbase config new                                   # writes /etc/aptbase/config.ini (needs sudo)
+aptbase config new                                   # writes /etc/aptbase.ini (needs sudo)
 aptbase config new --path ./aptbase.ini              # write anywhere
-aptbase config new --path ~/.config/aptbase/config.ini --force
+aptbase config new --path ~/aptbase.ini --force
 ```
 
 Example `config.ini`:
@@ -235,6 +235,38 @@ Run `aptbase <command> --help` for full, example-rich help on any command.
 aptbase ping             # reach every configured server, print its aptly version
 aptbase version          # local build info + remote aptly versions
 aptbase --version        # just the version string
+aptbase discover         # detailed overview of each server (see below)
+```
+
+### Discover
+
+`discover` probes each configured server and prints a rich overview: aptly
+version and auth status, a summary count of repositories, mirrors, snapshots,
+publications and tasks, and detailed tables for each. By default it counts
+packages per local repository (one query each); `--no-counts` skips that.
+
+```bash
+aptbase --api http://aptbase:8080 discover
+aptbase --api http://aptbase:8080 discover --no-counts
+aptbase --api http://aptbase:8080 discover --json | jq '.[].repos'
+```
+
+```
+http://aptbase:8080
+aptly 1.5.0  •  auth: none
+
+Summary
+repositories  2
+mirrors       0
+snapshots     0
+publications  6
+tasks         0
+
+Local repositories
+NAME    DIST   COMPONENT  PACKAGES  COMMENT
+──────  ─────  ─────────  ────────  ───────
+app     noble  main       8
+...
 ```
 
 ### Config
@@ -245,7 +277,7 @@ aptbase config print                         # resolved config as config.ini to 
 aptbase config list [--json]                 # resolved settings, sources, defaults
 
 # Capture an ad-hoc invocation as a system config file:
-aptbase --api http://aptbase:8080 -d noble config print | sudo tee /etc/aptbase/config.ini
+aptbase --api http://aptbase:8080 -d noble config print | sudo tee /etc/aptbase.ini
 ```
 
 ### Repositories

@@ -3,8 +3,8 @@
 // Resolution order, where a later layer overrides an earlier one (last wins):
 //
 //	built-in defaults
-//	  → /etc/aptbase/config.ini
-//	  → ~/.config/aptbase/config.ini
+//	  → /etc/aptbase.ini
+//	  → ~/aptbase.ini
 //	  → APTBASE_* environment variables
 //	  → command-line flags (only when explicitly set)
 //
@@ -42,7 +42,7 @@ const (
 )
 
 // SystemConfigPath is the default system-wide config location.
-const SystemConfigPath = "/etc/aptbase/config.ini"
+const SystemConfigPath = "/etc/aptbase.ini"
 
 // Settings holds the fully resolved configuration for a single invocation.
 type Settings struct {
@@ -64,7 +64,7 @@ type Settings struct {
 }
 
 // Source returns where the value for key was resolved from (e.g. "flag",
-// "/etc/aptbase/config.ini", "env:APTBASE_API", "default").
+// "/etc/aptbase.ini", "env:APTBASE_API", "default").
 func (s *Settings) Source(key string) string {
 	if src, ok := s.sources[key]; ok {
 		return src
@@ -98,13 +98,13 @@ func parseList(v string) []string {
 	return out
 }
 
-// userConfigPath returns ~/.config/aptbase/config.ini (empty if home unknown).
+// userConfigPath returns ~/aptbase.ini (empty if home unknown).
 func userConfigPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		return ""
 	}
-	return filepath.Join(home, ".config", "aptbase", "config.ini")
+	return filepath.Join(home, "aptbase.ini")
 }
 
 // Resolve builds Settings from all layers. flags is the root command's

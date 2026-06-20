@@ -33,8 +33,8 @@ tables, live task progress, and a config file so you are not retyping URLs and
 credentials.
 
 Configuration is layered (last wins):
-  defaults  →  /etc/aptbase/config.ini  →  ~/.config/aptbase/config.ini
-            →  APTBASE_* env vars        →  command-line flags
+  defaults  →  /etc/aptbase.ini  →  ~/aptbase.ini
+            →  APTBASE_* env vars  →  command-line flags
 
 Run 'aptbase config new' to scaffold a config file and 'aptbase config list' to
 see every resolved setting and where it came from.`,

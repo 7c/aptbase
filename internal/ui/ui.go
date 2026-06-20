@@ -46,3 +46,9 @@ func Heading(text string) {
 	fmt.Fprintln(os.Stdout)
 	color.New(color.Bold, color.Underline).Fprintln(os.Stdout, text)
 }
+
+// Label prints a bold subsection title preceded by a blank line.
+func Label(format string, a ...any) {
+	fmt.Fprintln(os.Stdout)
+	color.New(color.Bold).Fprintf(os.Stdout, format+"\n", a...)
+}

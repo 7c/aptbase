@@ -22,8 +22,8 @@ var configCmd = &cobra.Command{
 	Short: "Manage and inspect aptbase configuration",
 	Long: `Create a starter config file or inspect the fully resolved configuration.
 
-Configuration is layered (last wins): defaults, then /etc/aptbase/config.ini,
-then ~/.config/aptbase/config.ini, then APTBASE_* env vars, then CLI flags.`,
+Configuration is layered (last wins): defaults, then /etc/aptbase.ini,
+then ~/aptbase.ini, then APTBASE_* env vars, then CLI flags.`,
 }
 
 var configNewCmd = &cobra.Command{
@@ -31,12 +31,12 @@ var configNewCmd = &cobra.Command{
 	Short: "Write an annotated default config.ini",
 	Long: `Scaffold a commented config.ini you can edit.
 
-By default it writes to /etc/aptbase/config.ini (which usually needs sudo). Use
+By default it writes to /etc/aptbase.ini (which usually needs sudo). Use
 --path to write somewhere else, e.g. a per-user file. Existing files are not
 overwritten unless --force is given.`,
 	Example: `  sudo aptbase config new
   aptbase config new --path ./aptbase.ini
-  aptbase config new --path ~/.config/aptbase/config.ini --force`,
+  aptbase config new --path ~/aptbase.ini --force`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := configNewPath
@@ -68,7 +68,7 @@ easy to capture an ad-hoc invocation as a config file.`,
   aptbase --api http://aptbase:8080 config print
 
   # Write a system config from flags
-  aptbase --api http://aptbase:8080 -d noble -d jammy --user deploy config print | sudo tee /etc/aptbase/config.ini`,
+  aptbase --api http://aptbase:8080 -d noble -d jammy --user deploy config print | sudo tee /etc/aptbase.ini`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print(config.Render(settings))
@@ -145,7 +145,7 @@ func sourceOrDefault(val, src string) string {
 
 func init() {
 	configNewCmd.Flags().BoolVar(&configNewForce, "force", false, "overwrite an existing config file")
-	configNewCmd.Flags().StringVar(&configNewPath, "path", "", "destination path (default /etc/aptbase/config.ini)")
+	configNewCmd.Flags().StringVar(&configNewPath, "path", "", "destination path (default /etc/aptbase.ini)")
 	configCmd.AddCommand(configNewCmd, configPrintCmd, configListCmd)
 	rootCmd.AddCommand(configCmd)
 }
