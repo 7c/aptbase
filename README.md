@@ -241,7 +241,11 @@ aptbase --version        # just the version string
 
 ```bash
 aptbase config new [--path FILE] [--force]   # scaffold an annotated config.ini
+aptbase config print                         # resolved config as config.ini to stdout (pipeable)
 aptbase config list [--json]                 # resolved settings, sources, defaults
+
+# Capture an ad-hoc invocation as a system config file:
+aptbase --api http://aptbase:8080 -d noble config print | sudo tee /etc/aptbase/config.ini
 ```
 
 ### Repositories
@@ -406,5 +410,4 @@ tools/              dev tools (e.g. increaseversion.go); not part of the binary
 
 ## License
 
-Not yet specified. Add a `LICENSE` file before publishing if this is to be
-open source.
+[MIT](LICENSE) © 7c

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -50,6 +51,27 @@ overwritten unless --force is given.`,
 		}
 		ui.Success("wrote default config to %s", path)
 		ui.Dim("edit it, then run 'aptbase config list' to verify resolved values")
+		return nil
+	},
+}
+
+var configPrintCmd = &cobra.Command{
+	Use:   "print",
+	Short: "Print the resolved configuration as config.ini to stdout",
+	Long: `Render the fully resolved configuration (config file + env vars + flags)
+as a config.ini and write it to stdout, so you can review or pipe it to a file.
+
+Unlike 'config new' (which writes a static annotated template), 'config print'
+reflects the current effective settings — flags and env included — making it
+easy to capture an ad-hoc invocation as a config file.`,
+	Example: `  # Capture the current settings, overriding the API on the way
+  aptbase --api http://aptbase:8080 config print
+
+  # Write a system config from flags
+  aptbase --api http://aptbase:8080 -d noble -d jammy --user deploy config print | sudo tee /etc/aptbase/config.ini`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Print(config.Render(settings))
 		return nil
 	},
 }
@@ -124,6 +146,6 @@ func sourceOrDefault(val, src string) string {
 func init() {
 	configNewCmd.Flags().BoolVar(&configNewForce, "force", false, "overwrite an existing config file")
 	configNewCmd.Flags().StringVar(&configNewPath, "path", "", "destination path (default /etc/aptbase/config.ini)")
-	configCmd.AddCommand(configNewCmd, configListCmd)
+	configCmd.AddCommand(configNewCmd, configPrintCmd, configListCmd)
 	rootCmd.AddCommand(configCmd)
 }
