@@ -58,6 +58,35 @@ func TestQueryEncoding(t *testing.T) {
 	}
 }
 
+func TestPackageQueryParams(t *testing.T) {
+	var gotQuery, gotFormat, gotMax, gotDeps string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		gotQuery = q.Get("q")
+		gotFormat = q.Get("format")
+		gotMax = q.Get("maximumVersion")
+		gotDeps = q.Get("withDeps")
+		w.Write([]byte(`[]`))
+	}))
+	defer srv.Close()
+
+	c := New(Options{BaseURL: srv.URL})
+	if _, err := c.RepoPackageDetails("app", PackageQuery{Query: "nginx", MaximumVersion: true, WithDeps: true}); err != nil {
+		t.Fatal(err)
+	}
+	if gotQuery != "nginx" || gotFormat != "details" || gotMax != "1" || gotDeps != "1" {
+		t.Errorf("params: q=%q format=%q max=%q deps=%q", gotQuery, gotFormat, gotMax, gotDeps)
+	}
+
+	// Keys endpoint must not request details format.
+	if _, err := c.RepoPackageKeys("app", PackageQuery{Query: "nginx"}); err != nil {
+		t.Fatal(err)
+	}
+	if gotFormat != "" {
+		t.Errorf("keys request should not set format=details, got %q", gotFormat)
+	}
+}
+
 func TestPrefixEncoding(t *testing.T) {
 	cases := map[string]string{
 		"":         ":.",

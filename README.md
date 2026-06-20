@@ -8,7 +8,7 @@ colored output, aligned tables, live task progress, and a config file so you are
 not retyping URLs and credentials.
 
 It is a friendly adapter, not a reimplementation: every command maps onto aptly's
-own API. The flagship command, `aptbase repo deploy`, takes a `.deb` from your
+own API. The flagship command, `aptbase deploy`, takes a `.deb` from your
 disk to live-and-verified in a single step.
 
 ---
@@ -72,7 +72,7 @@ $EDITOR ~/aptbase.ini
 aptbase config list
 
 # 4. Release a package end to end
-aptbase repo deploy app-stable ./app_1.2.3_amd64.deb -d noble
+aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble
 ```
 
 ---
@@ -158,7 +158,7 @@ against **all** of them, with a per-server status line and an aggregate exit
 code:
 
 ```bash
-aptbase --api http://prod:8080 --api http://replica:8080 repo deploy app-stable ./app.deb -d noble
+aptbase --api http://prod:8080 --api http://replica:8080 deploy app-stable ./app.deb -d noble
 ```
 
 Use `[server:NAME]` sections plus `--server NAME` to switch between named
@@ -313,7 +313,7 @@ aptbase repo add ./a_1_amd64.deb ./b_1_amd64.deb     # repo(s) from config defau
 
 ### Deploy (flagship)
 
-`repo deploy` is the one-command release workflow. For each target server it:
+`deploy` is the one-command release workflow. For each target server it:
 
 1. uploads the `.deb` file(s),
 2. adds them to the target repo(s),
@@ -325,16 +325,16 @@ Repos default to the configured `repos`; distributions default to the configured
 
 ```bash
 # Single repo, two distributions
-aptbase repo deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
+aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
 
 # Use config defaults for repo / distributions / servers
-aptbase repo deploy ./app_1.2.3_amd64.deb
+aptbase deploy ./app_1.2.3_amd64.deb
 
 # Signed publish
-aptbase repo deploy app-stable ./app.deb -d noble --gpg-key DEADBEEF --batch
+aptbase deploy app-stable ./app.deb -d noble --gpg-key DEADBEEF --batch
 
 # Unsigned (lab) publish, no confirmation prompts
-aptbase repo deploy app-stable ./app.deb -d noble --skip-signing --yes
+aptbase deploy app-stable ./app.deb -d noble --skip-signing --yes
 ```
 
 Deploy and publish accept signing flags: `--gpg-key`, `--keyring`,
@@ -353,14 +353,36 @@ aptbase publish update noble jammy --gpg-key DEADBEEF --batch
 ### Packages
 
 ```bash
-aptbase package search 'nginx'               # search configured repos
-aptbase package search 'nginx (>= 1.20)' --repo app-stable
+aptbase package list                         # all packages, NAME/VERSION/ARCH table
+aptbase package list --latest                # newest version of each package only
+aptbase package list --details --repo app    # full records: version, arch, size, maintainer
+aptbase package list --arch amd64 --limit 20 # filter by arch, cap output
+aptbase package list --keys                  # raw aptly package keys
+aptbase package search 'nginx (>= 1.20)'     # same options, query required
 aptbase package show 'Pamd64 nginx 1.20.1-1 abc123'
 ```
 
-aptly has no global package index, so `search` runs against each target repo
-(those given with `--repo`, else the configured `repos`). Queries use aptly's
-[query syntax](https://www.aptly.info/doc/feature/query/).
+Both `list` and `search` query each target repo (`--repo`, else the configured
+`repos`); aptly has no global package index. `list` lists everything (an
+optional query narrows it); `search` requires a query. Queries use aptly's
+[query syntax](https://www.aptly.info/doc/feature/query/) (names match exactly;
+use `%` for wildcards, e.g. `Name (% nginx*)`).
+
+Shared options:
+
+| Flag | Effect |
+|------|--------|
+| `--repo` (repeatable) | repos to query (default: configured `repos`) |
+| `--latest` | only the newest version of each package (client-side) |
+| `--details` | full records as a wider table (version, arch, size, maintainer) |
+| `--arch` (repeatable) | filter by architecture |
+| `--limit N` | cap results per repo |
+| `--sort name\|version` | sort order (default `name`) |
+| `--keys` | print raw aptly keys instead of the parsed table |
+
+Output defaults to a parsed `NAME / VERSION / ARCH` table grouped by repo;
+`--json` emits structured results. `--latest` and version sorting use Debian
+version comparison, so `0.0.9` precedes `0.0.10`.
 
 ### Tasks
 

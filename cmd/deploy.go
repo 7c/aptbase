@@ -20,10 +20,11 @@ var (
 	deployNoVerify   bool
 )
 
-var repoDeployCmd = &cobra.Command{
+var deployCmd = &cobra.Command{
 	Use:   "deploy [repo] <file.deb...>",
-	Short: "Upload, add, publish, and verify a package in one command",
-	Long: `Deploy is the flagship release command. For each target server it:
+	Short: "Shortcut: upload, add, publish, and verify a package in one command",
+	Long: `Deploy is the flagship release shortcut, collapsing several steps into one.
+For each target server it:
 
   1. uploads the .deb file(s),
   2. adds them to the target repo(s),
@@ -34,16 +35,16 @@ Repos default to the configured 'repos'; distributions default to the
 configured 'distributions' (override with -d). It fans out across every
 configured server, so one command can release everywhere.`,
 	Example: `  # Single repo, two distributions
-  aptbase repo deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
+  aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
 
   # Use config defaults for repo/distributions/servers
-  aptbase repo deploy ./app_1.2.3_amd64.deb
+  aptbase deploy ./app_1.2.3_amd64.deb
 
   # Signed publish
-  aptbase repo deploy app-stable ./app.deb -d noble --gpg-key DEADBEEF --batch
+  aptbase deploy app-stable ./app.deb -d noble --gpg-key DEADBEEF --batch
 
   # Unsigned (lab) publish, no confirmation prompts
-  aptbase repo deploy app-stable ./app.deb -d noble --skip-signing --yes`,
+  aptbase deploy app-stable ./app.deb -d noble --skip-signing --yes`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		repoArg, files, err := splitRepoAndFiles(args)
@@ -140,7 +141,7 @@ func packagePresent(keys []string, info debInfo) bool {
 }
 
 func init() {
-	f := repoDeployCmd.Flags()
+	f := deployCmd.Flags()
 	f.StringVar(&deployGpgKey, "gpg-key", "", "GPG key ID to sign the published repo")
 	f.StringVar(&deployKeyring, "keyring", "", "GPG keyring file to use")
 	f.StringVar(&deployPassphrase, "passphrase", "", "GPG key passphrase")
@@ -149,5 +150,5 @@ func init() {
 	f.BoolVar(&deployForce, "force-overwrite", false, "overwrite existing published files")
 	f.BoolVar(&deployNoVerify, "no-verify", false, "skip post-publish verification")
 
-	repoCmd.AddCommand(repoDeployCmd)
+	rootCmd.AddCommand(deployCmd)
 }

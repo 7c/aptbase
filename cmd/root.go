@@ -42,10 +42,10 @@ see every resolved setting and where it came from.`,
   aptbase --api http://localhost:8080 ping
 
   # Release a package end to end (upload + add + publish + verify)
-  aptbase repo deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
+  aptbase deploy app-stable ./app_1.2.3_amd64.deb -d noble -d jammy
 
   # Using config.ini defaults for api/repos/distributions
-  aptbase repo deploy ./app_1.2.3_amd64.deb`,
+  aptbase deploy ./app_1.2.3_amd64.deb`,
 	Version:       version,
 	SilenceUsage:  true,
 	SilenceErrors: true,

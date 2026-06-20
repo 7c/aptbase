@@ -50,18 +50,55 @@ func (c *Client) DeleteRepo(name string, force bool) error {
 	return c.delete("/api/repos/"+url.PathEscape(name), q, nil)
 }
 
+// PackageQuery holds options for listing/searching packages in a repository.
+type PackageQuery struct {
+	Query          string // aptly query, e.g. `nginx (>= 1.20)` (empty lists all)
+	MaximumVersion bool   // only the newest version of each package
+	WithDeps       bool   // include packages that satisfy dependencies
+}
+
+// values builds the query string shared by the key and detail endpoints.
+func (q PackageQuery) values(details bool) url.Values {
+	v := url.Values{}
+	if q.Query != "" {
+		v.Set("q", q.Query)
+	}
+	if q.MaximumVersion {
+		v.Set("maximumVersion", "1")
+	}
+	if q.WithDeps {
+		v.Set("withDeps", "1")
+	}
+	if details {
+		v.Set("format", "details")
+	}
+	return v
+}
+
 // RepoPackages lists package keys in a repository, optionally filtered by an
 // aptly query (e.g. `nginx (>= 1.20)`).
 func (c *Client) RepoPackages(name, query string) ([]string, error) {
-	q := url.Values{}
-	if query != "" {
-		q.Set("q", query)
-	}
+	return c.RepoPackageKeys(name, PackageQuery{Query: query})
+}
+
+// RepoPackageKeys lists package keys in a repository with full query options.
+func (c *Client) RepoPackageKeys(name string, q PackageQuery) ([]string, error) {
 	var keys []string
-	if err := c.get("/api/repos/"+url.PathEscape(name)+"/packages", q, &keys); err != nil {
+	if err := c.get("/api/repos/"+url.PathEscape(name)+"/packages", q.values(false), &keys); err != nil {
 		return nil, err
 	}
 	return keys, nil
+}
+
+// RepoPackageDetails lists full package records (aptly format=details) in a
+// repository. Each record is a map of Debian control fields (Package, Version,
+// Architecture, Maintainer, Filename, Size, ...).
+func (c *Client) RepoPackageDetails(name string, q PackageQuery) ([]map[string]any, error) {
+	var records []map[string]any
+	if err := c.get("/api/repos/"+url.PathEscape(name)+"/packages", q.values(true), &records); err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
 // AddPackagesFromDir adds previously uploaded files (in upload dir) to a

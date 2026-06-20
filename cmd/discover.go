@@ -223,7 +223,7 @@ func previewPackages(keys []string, limit int) []pkgPreview {
 		if pkgs[i].Name != pkgs[j].Name {
 			return pkgs[i].Name < pkgs[j].Name
 		}
-		return pkgs[i].Version > pkgs[j].Version
+		return compareVersions(pkgs[i].Version, pkgs[j].Version) > 0
 	})
 	if limit > 0 && len(pkgs) > limit {
 		pkgs = pkgs[:limit]

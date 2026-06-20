@@ -13,7 +13,7 @@ var repoAddCmd = &cobra.Command{
 
 If repo is omitted, the configured default repos are used (all of them). The
 add runs as an async aptly task whose progress is streamed live, then the
-temporary upload directory is cleaned up. To also publish, use 'repo deploy'.`,
+temporary upload directory is cleaned up. To also publish, use 'deploy'.`,
 	Example: `  aptbase repo add app-stable ./app_1.2.3_amd64.deb
   aptbase repo add ./a_1_amd64.deb ./b_1_amd64.deb        # repos from config
   aptbase --api http://prod:8080 --api http://replica:8080 repo add app-stable ./app.deb`,

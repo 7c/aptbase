@@ -14,7 +14,7 @@ var repoCmd = &cobra.Command{
 	Long: `List, inspect, create, edit, and delete local repositories, and add or
 deploy packages to them.
 
-The flagship workflow is 'aptbase repo deploy', which uploads, adds, publishes,
+The flagship workflow is 'aptbase deploy', which uploads, adds, publishes,
 and verifies a package in one command.`,
 }
 
