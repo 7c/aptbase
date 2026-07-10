@@ -371,9 +371,45 @@ aptbase package show 'Pamd64 nginx 1.20.1-1 abc123'
 
 Both `list` and `search` query each target repo (`--repo`, else the configured
 `repos`); aptly has no global package index. `list` lists everything (an
-optional query narrows it); `search` requires a query. Queries use aptly's
-[query syntax](https://www.aptly.info/doc/feature/query/) (names match exactly;
-use `%` for wildcards, e.g. `Name (% nginx*)`).
+optional query narrows it); `search` requires a query.
+
+#### Search examples
+
+Queries are passed straight through to aptly's
+[query syntax](https://www.aptly.info/doc/feature/query/). The most common
+surprise: **a bare word is an exact package-name match, not a substring search.**
+So `squid` finds `squid` but *not* `squid-common` — use a pattern for that.
+
+```bash
+# Exact package name (matches all versions of that package)
+aptbase package search 'squid'                       # squid
+
+# Glob pattern with %  — the usual way to do a "starts with" search
+aptbase package search 'Name (% squid*)'             # squid, squid-common
+
+# Regular expression with ~
+aptbase package search 'Name (~ ^squid)'             # squid, squid-common
+
+# Version constraint (Debian relation operators: >=, <=, =, >>, <<)
+aptbase package search 'squid (>= 16.0)'
+aptbase package search 'squid (>= 16.0), squid (<< 17.0)'    # a version range
+
+# Match on any package field with $Field
+aptbase package search '$Architecture (= all)'       # squid-common
+aptbase package search '$Version (% 16.14*)'
+
+# Combine: ',' is AND, '|' is OR, '!' is NOT
+aptbase package search 'squid | squid-common'                # either
+aptbase package search 'Name (% squid*), $Architecture (= all)'  # squid-common
+aptbase package search '!squid, Name (% squid*)'             # everything squid* except squid
+```
+
+Queries compose with the shared options below — e.g. show only the newest
+amd64 build of each matching package:
+
+```bash
+aptbase package search 'Name (% squid*)' --latest --arch amd64
+```
 
 Shared options:
 
