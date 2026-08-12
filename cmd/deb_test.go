@@ -11,6 +11,10 @@ func TestParseDeb(t *testing.T) {
 		{"/tmp/my-pkg_0.1.0-1_all.deb", "my-pkg", "0.1.0-1", "all"},
 		{"weird.deb", "weird", "", ""},
 		{"a_b.deb", "a", "b", ""},
+		// Names may contain underscores; version and arch never do, so the
+		// trailing two fields are authoritative.
+		{"wafcloud_trigger_0.0.1_amd64.deb", "wafcloud_trigger", "0.0.1", "amd64"},
+		{"./a_b_c_1.0-2_all.deb", "a_b_c", "1.0-2", "all"},
 	}
 	for _, c := range cases {
 		got := parseDeb(c.path)
@@ -31,5 +35,15 @@ func TestPackagePresent(t *testing.T) {
 	}
 	if !packagePresent(keys, debInfo{Name: "other"}) {
 		t.Error("should find by name when version empty")
+	}
+	if packagePresent(keys, debInfo{Name: "pp", Version: "1.2.3"}) {
+		t.Error("should not match a partial package name")
+	}
+	if packagePresent(keys, debInfo{Name: "app", Version: "1.2.3", Arch: "arm64"}) {
+		t.Error("should not match a different architecture")
+	}
+	underscore := []string{"Pamd64 wafcloud_trigger 0.0.1 abc123"}
+	if !packagePresent(underscore, parseDeb("wafcloud_trigger_0.0.1_amd64.deb")) {
+		t.Error("should find a package whose name contains underscores")
 	}
 }

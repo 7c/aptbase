@@ -64,20 +64,37 @@ func distributionsFor() ([]string, error) {
 }
 
 // parseDeb derives package identity from a Debian package filename of the form
-// name_version_arch.deb. Returns best-effort values when the format differs.
+// name_version_arch.deb. Fields are taken from the right: Debian versions and
+// architectures never contain an underscore, so anything left over is the name
+// — which may itself contain underscores. Returns best-effort values when the
+// format differs.
 func parseDeb(path string) debInfo {
 	base := strings.TrimSuffix(filepath.Base(path), ".deb")
 	info := debInfo{File: filepath.Base(path)}
-	parts := strings.Split(base, "_")
-	switch len(parts) {
-	case 3:
-		info.Name, info.Version, info.Arch = parts[0], parts[1], parts[2]
-	case 2:
-		info.Name, info.Version = parts[0], parts[1]
-	default:
+
+	rest, last, ok := cutLast(base, "_")
+	if !ok {
 		info.Name = base
+		return info
 	}
+	name, version, ok := cutLast(rest, "_")
+	if !ok {
+		// Only one underscore: name_version, no architecture.
+		info.Name, info.Version = rest, last
+		return info
+	}
+	info.Name, info.Version, info.Arch = name, version, last
 	return info
+}
+
+// cutLast splits s around the last instance of sep, reporting whether sep was
+// found.
+func cutLast(s, sep string) (before, after string, found bool) {
+	i := strings.LastIndex(s, sep)
+	if i < 0 {
+		return s, "", false
+	}
+	return s[:i], s[i+len(sep):], true
 }
 
 // newUploadDir returns a unique upload directory name for this invocation.

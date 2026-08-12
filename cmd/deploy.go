@@ -209,14 +209,21 @@ func verifyDeploy(srv target.Server, repos, files []string) error {
 }
 
 // packagePresent reports whether a package key matching the .deb is present.
+// Key fields are compared exactly so a partial name cannot pass verification;
+// version and arch are only checked when the filename supplied them.
 func packagePresent(keys []string, info debInfo) bool {
 	for _, k := range keys {
-		if !strings.Contains(k, info.Name) {
+		p := parsePkgKey(k)
+		if p.Name != info.Name {
 			continue
 		}
-		if info.Version == "" || strings.Contains(k, info.Version) {
-			return true
+		if info.Version != "" && p.Version != info.Version {
+			continue
 		}
+		if info.Arch != "" && p.Arch != info.Arch {
+			continue
+		}
+		return true
 	}
 	return false
 }
